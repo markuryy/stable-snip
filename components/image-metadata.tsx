@@ -114,31 +114,29 @@ export function ImageMetadata({ meta, className, imageUrl, originalFile }: Image
   
   if (!hasRegularMeta && !hasComfy) {
     return (
-      <Card className={className}>
-        <CardHeader>
-          <CardTitle>Image Metadata</CardTitle>
-          <CardDescription>No metadata found in this image</CardDescription>
-        </CardHeader>
-      </Card>
+      <div className={className}>
+        <div className="border-b py-3 px-4">
+          <h2 className="text-md font-medium">Generation Parameters</h2>
+          <p className="text-sm text-muted-foreground">No supported metadata found in this image</p>
+        </div>
+      </div>
     );
   }
   
   return (
-    <Card className={className}>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          Image Metadata
-          <Badge variant="outline" className="rounded-sm">
-            {generationProcess}
-          </Badge>
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
+    <div className={className}>
+      <div className="border-b py-3 px-4 flex items-center justify-between">
+        <h2 className="text-md font-medium">Generation Parameters</h2>
+        <Badge variant="outline" className="rounded-sm">
+          {generationProcess}
+        </Badge>
+      </div>
+      <div className="p-4">
         <Tabs defaultValue="formatted">
-          <TabsList>
-            <TabsTrigger value="formatted">Formatted</TabsTrigger>
-            <TabsTrigger value="raw">Raw</TabsTrigger>
-            {imageUrl && <TabsTrigger value="edit">Edit</TabsTrigger>}
+        <TabsList>
+          <TabsTrigger value="formatted">Formatted</TabsTrigger>
+          <TabsTrigger value="raw">Raw</TabsTrigger>
+          {imageUrl && <TabsTrigger value="edit">Edit</TabsTrigger>}
           </TabsList>
           
           <TabsContent value="formatted">
@@ -150,7 +148,7 @@ export function ImageMetadata({ meta, className, imageUrl, originalFile }: Image
                     <div className="font-medium text-sm">{label}</div>
                     <CopyButton text={value?.toString() || ''} />
                   </div>
-                  <pre className="text-xs bg-muted mt-1 p-2 rounded-md whitespace-pre-wrap break-words overflow-auto max-h-[150px]">
+                  <pre className="text-xs bg-muted mt-1 p-2 rounded-md whitespace-pre-wrap break-words overflow-auto max-h-[150px] min-h-[1.8rem]">
                     {value}
                   </pre>
                 </div>
@@ -160,7 +158,7 @@ export function ImageMetadata({ meta, className, imageUrl, originalFile }: Image
               {medium.map(({ label, value }) => (
                 <div key={label} className="mb-2 flex justify-between items-start">
                   <div className="font-medium text-sm">{label}</div>
-                  <pre className="text-xs bg-muted p-1 rounded-md flex-1 text-right ml-2 max-w-[70%] overflow-hidden">
+                  <pre className="text-xs bg-muted p-1 rounded-md flex-1 text-right ml-2 max-w-[70%] min-h-[1.8rem] overflow-hidden">
                     {value}
                   </pre>
                 </div>
@@ -262,8 +260,8 @@ export function ImageMetadata({ meta, className, imageUrl, originalFile }: Image
             </TabsContent>
           )}
         </Tabs>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
 
@@ -347,9 +345,23 @@ function organizeMeta(meta: Record<string, any>) {
     
     const label = labelDictionary[key] || key;
     
-    if (value.length > 50 || key === 'prompt') {
-      long.push({ label, value });
-    } else if (value.length > 15 || key === 'negativePrompt') {
+    if (value.length > 50 || key === 'prompt' || key === 'negativePrompt') {
+      // Put negative prompt directly after prompt
+      if (key === 'prompt') {
+        long.unshift({ label, value });
+      } else if (key === 'negativePrompt') {
+        // Try to find prompt position to insert after it
+        const promptIndex = long.findIndex(item => item.label === 'Prompt');
+        if (promptIndex >= 0) {
+          long.splice(promptIndex + 1, 0, { label, value });
+        } else {
+          // If no prompt found yet, just add it (will be reordered when prompt comes)
+          long.push({ label, value });
+        }
+      } else {
+        long.push({ label, value });
+      }
+    } else if (value.length > 15) {
       medium.push({ label, value });
     } else {
       short.push({ label, value });
