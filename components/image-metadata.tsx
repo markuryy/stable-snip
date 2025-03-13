@@ -3,12 +3,15 @@
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Copy, ChevronDown, ChevronUp, FileJson } from "lucide-react";
+import { Copy, ChevronDown, ChevronUp, FileJson, Save } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import { encodeMetadata } from "@/lib/metadata";
+import { saveImageWithMetadata } from "@/lib/metadata/save-with-metadata";
 
 type MetaDisplayItem = {
   label: string;
@@ -18,6 +21,8 @@ type MetaDisplayItem = {
 type ImageMetaProps = {
   meta: Record<string, any>;
   className?: string;
+  imageUrl?: string;
+  originalFile?: File;
 };
 
 // Dictionary mapping metadata keys to display labels
@@ -37,8 +42,13 @@ const labelDictionary: Record<string, string> = {
   denoise: 'Denoise',
 };
 
-export function ImageMetadata({ meta, className }: ImageMetaProps) {
+export function ImageMetadata({ meta, className, imageUrl, originalFile }: ImageMetaProps) {
   const [rawExpanded, setRawExpanded] = useState(false);
+  const [editedMetadata, setEditedMetadata] = useState<string>(
+    meta.prompt ? encodeMetadata(meta) : JSON.stringify(meta, null, 2)
+  );
+  const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   
   // Organize metadata into categories by length
   const { long, medium, short, hasComfy, resources } = organizeMeta(meta);
@@ -48,6 +58,59 @@ export function ImageMetadata({ meta, className }: ImageMetaProps) {
   
   // Generation process
   const generationProcess = meta.comfy ? 'ComfyUI' : 'txt2img';
+  
+  const handleSaveMetadata = async () => {
+    if (!imageUrl) return;
+    
+    try {
+      setIsSaving(true);
+      
+      let parsedMetadata;
+      if (meta.prompt) {
+        // For A1111/SD WebUI format - keep the format but update content
+        parsedMetadata = {...meta, prompt: editedMetadata};
+      } else {
+        // For JSON/ComfyUI format
+        parsedMetadata = JSON.parse(editedMetadata);
+      }
+      
+      // Create an image element to use for saving
+      const img = new Image();
+      img.src = imageUrl;
+      
+      await new Promise((resolve) => {
+        img.onload = resolve;
+      });
+      
+      // Create a canvas to draw the image
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+      ctx?.drawImage(img, 0, 0);
+      
+      // Save with the edited metadata
+      const format = originalFile?.type.includes('png') ? 'png' : 'jpeg';
+      const blob = await saveImageWithMetadata(canvas, parsedMetadata, format as any);
+      
+      // Create download link
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = originalFile?.name || `image-with-edited-metadata.${format}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      setIsEditing(false);
+    } catch (error) {
+      console.error('Error saving metadata:', error);
+      alert('Failed to save metadata: ' + (error instanceof Error ? error.message : String(error)));
+    } finally {
+      setIsSaving(false);
+    }
+  };
   
   if (!hasRegularMeta && !hasComfy) {
     return (
@@ -75,6 +138,7 @@ export function ImageMetadata({ meta, className }: ImageMetaProps) {
           <TabsList>
             <TabsTrigger value="formatted">Formatted</TabsTrigger>
             <TabsTrigger value="raw">Raw</TabsTrigger>
+            {imageUrl && <TabsTrigger value="edit">Edit</TabsTrigger>}
           </TabsList>
           
           <TabsContent value="formatted">
@@ -84,7 +148,7 @@ export function ImageMetadata({ meta, className }: ImageMetaProps) {
                 <div key={label} className="mb-4">
                   <div className="flex justify-between items-center">
                     <div className="font-medium text-sm">{label}</div>
-                    <CopyButton text={value.toString()} />
+                    <CopyButton text={value?.toString() || ''} />
                   </div>
                   <pre className="text-xs bg-muted mt-1 p-2 rounded-md whitespace-pre-wrap break-words overflow-auto max-h-[150px]">
                     {value}
@@ -171,6 +235,32 @@ export function ImageMetadata({ meta, className }: ImageMetaProps) {
               </div>
             </ScrollArea>
           </TabsContent>
+          
+          {imageUrl && (
+            <TabsContent value="edit">
+              <div className="space-y-4">
+                <Textarea 
+                  value={editedMetadata}
+                  onChange={(e) => setEditedMetadata(e.target.value)}
+                  className="font-mono text-xs h-[300px]"
+                />
+                <Button
+                  variant="default"
+                  onClick={handleSaveMetadata}
+                  disabled={isSaving}
+                >
+                  {isSaving ? (
+                    <span>Saving...</span>
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4 mr-2" />
+                      Save with Edited Metadata
+                    </>
+                  )}
+                </Button>
+              </div>
+            </TabsContent>
+          )}
         </Tabs>
       </CardContent>
     </Card>
@@ -191,7 +281,7 @@ function CopyButton({ text, className }: { text: string; className?: string }) {
     <Button 
       variant="ghost" 
       size="icon" 
-      className={cn("h-7 w-7", className)}
+      className={cn("h-7 w-7 min-w-[4rem]", className)} 
       onClick={handleCopy}
     >
       {copied ? <Badge className="text-xs">Copied!</Badge> : <Copy className="h-3.5 w-3.5" />}
