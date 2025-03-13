@@ -66,12 +66,6 @@ export function ImageProcessor() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Image upload and preview section */}
         <Card>
-          <CardHeader>
-            <CardTitle>Image Processor</CardTitle>
-            <CardDescription>
-              Upload an image to extract and view its metadata
-            </CardDescription>
-          </CardHeader>
           <CardContent>
             <div 
               className="border-2 border-dashed rounded-lg p-6 text-center cursor-pointer" 

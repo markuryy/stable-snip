@@ -41,13 +41,12 @@ export function ImageMetadata({ meta, className }: ImageMetaProps) {
   const [rawExpanded, setRawExpanded] = useState(false);
   
   // Organize metadata into categories by length
-  const { long, medium, short, hasComfy } = organizeMeta(meta);
+  const { long, medium, short, hasComfy, resources } = organizeMeta(meta);
   
   // Whether there's any metadata to display
   const hasRegularMeta = long.length > 0 || medium.length > 0 || short.length > 0;
   
-  // Software/generation process
-  const software = meta.software?.toString() || 'External Generator';
+  // Generation process
   const generationProcess = meta.comfy ? 'ComfyUI' : 'txt2img';
   
   if (!hasRegularMeta && !hasComfy) {
@@ -66,9 +65,6 @@ export function ImageMetadata({ meta, className }: ImageMetaProps) {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           Image Metadata
-          <Badge variant="outline" className="rounded-sm">
-            {software}
-          </Badge>
           <Badge variant="outline" className="rounded-sm">
             {generationProcess}
           </Badge>
@@ -116,6 +112,26 @@ export function ImageMetadata({ meta, className }: ImageMetaProps) {
                     </div>
                   ))}
                 </div>
+              )}
+              
+              {/* Resources */}
+              {resources.length > 0 && (
+                <>
+                  <Separator className="my-4" />
+                  <div className="mb-2">
+                    <div className="font-medium text-sm mb-2">Resources</div>
+                    <div className="grid grid-cols-1 gap-2">
+                      {resources.map(({ label, value }, index) => (
+                        <div key={index} className="flex justify-between items-center">
+                          <div className="text-sm">{label}</div>
+                          <Badge variant="outline" className="text-xs font-mono">
+                            {value}
+                          </Badge>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </>
               )}
               
               {/* ComfyUI workflow */}
@@ -188,6 +204,7 @@ function organizeMeta(meta: Record<string, any>) {
   const long: MetaDisplayItem[] = [];
   const medium: MetaDisplayItem[] = [];
   const short: MetaDisplayItem[] = [];
+  const resources: MetaDisplayItem[] = [];
   
   // Parse the comfy data if it's a string
   let comfyData;
@@ -204,10 +221,26 @@ function organizeMeta(meta: Record<string, any>) {
   // Check if we have ComfyUI metadata
   const hasComfy = !!comfyData;
   
+  // Extract resources if available
+  if (meta.resources && Array.isArray(meta.resources)) {
+    for (const resource of meta.resources) {
+      if (resource.type && resource.name) {
+        const label = `${resource.type.charAt(0).toUpperCase() + resource.type.slice(1)}`;
+        const detail = resource.weight ? ` (weight: ${resource.weight})` : '';
+        const value = `${resource.name}${detail}`;
+        resources.push({ label, value });
+      }
+    }
+  }
+  
+  if (meta.Model) {
+    resources.push({ label: 'Model', value: meta.Model });
+  }
+  
   // Categorize other metadata by length
   for (const key of Object.keys(meta)) {
-    // Skip the comfy data as we handle it separately
-    if (key === 'comfy') continue;
+    // Skip the comfy data and resources as we handle them separately
+    if (key === 'comfy' || key === 'resources' || key === 'Model') continue;
     // Skip complex objects unless we want to display them
     if (typeof meta[key] === 'object' && !Array.isArray(meta[key])) continue;
     
@@ -218,12 +251,12 @@ function organizeMeta(meta: Record<string, any>) {
     
     if (value.length > 50 || key === 'prompt') {
       long.push({ label, value });
-    } else if (value.length > 15 || key === 'Model' || key === 'negativePrompt') {
+    } else if (value.length > 15 || key === 'negativePrompt') {
       medium.push({ label, value });
     } else {
       short.push({ label, value });
     }
   }
   
-  return { long, medium, short, hasComfy };
+  return { long, medium, short, hasComfy, resources };
 }
