@@ -131,7 +131,7 @@ export function ImageMetadata({ meta, className, imageUrl, originalFile }: Image
           {generationProcess}
         </Badge>
       </div>
-      <div className="p-4">
+      <div className="p-4 px-6">
         <Tabs defaultValue="formatted">
         <TabsList>
           <TabsTrigger value="formatted">Formatted</TabsTrigger>
@@ -140,7 +140,7 @@ export function ImageMetadata({ meta, className, imageUrl, originalFile }: Image
           </TabsList>
           
           <TabsContent value="formatted">
-            <ScrollArea className="max-h-[500px] pr-3">
+            <div className="py-2">
               {/* Long format metadata (prompt, etc.) */}
               {long.map(({ label, value }) => (
                 <div key={label} className="mb-4">
@@ -148,7 +148,7 @@ export function ImageMetadata({ meta, className, imageUrl, originalFile }: Image
                     <div className="font-medium text-sm">{label}</div>
                     <CopyButton text={value?.toString() || ''} />
                   </div>
-                  <pre className="text-xs bg-muted mt-1 p-2 rounded-md whitespace-pre-wrap break-words overflow-auto max-h-[150px] min-h-[1.8rem]">
+                  <pre className="text-xs bg-muted mt-1 p-2 px-3 rounded-md whitespace-pre-wrap break-words w-full min-h-[1.8rem]">
                     {value}
                   </pre>
                 </div>
@@ -156,21 +156,21 @@ export function ImageMetadata({ meta, className, imageUrl, originalFile }: Image
               
               {/* Medium length metadata items */}
               {medium.map(({ label, value }) => (
-                <div key={label} className="mb-2 flex justify-between items-start">
+                <div key={label} className="mb-2 flex justify-between items-center">
                   <div className="font-medium text-sm">{label}</div>
-                  <pre className="text-xs bg-muted p-1 rounded-md flex-1 text-right ml-2 max-w-[70%] min-h-[1.8rem] overflow-hidden">
+                  <pre className="text-xs bg-muted p-1 py-1.5 px-3 rounded-md flex-1 text-right ml-2 whitespace-pre-wrap break-words min-h-[1.8rem] leading-normal">
                     {value}
                   </pre>
                 </div>
               ))}
               
-              {/* Short metadata items in grid */}
+              {/* Short metadata items in single column */}
               {short.length > 0 && (
-                <div className="grid grid-cols-2 gap-x-4 gap-y-1 mt-3">
+                <div className="flex flex-col gap-y-2 mt-3">
                   {short.map(({ label, value }) => (
                     <div key={label} className="flex justify-between items-center">
                       <div className="font-medium text-sm">{label}</div>
-                      <pre className="text-xs bg-muted p-1 rounded-md">{value}</pre>
+                      <pre className="text-xs bg-muted p-1 py-1.5 px-3 rounded-md whitespace-pre-wrap ml-2 leading-normal">{value}</pre>
                     </div>
                   ))}
                 </div>
@@ -182,13 +182,13 @@ export function ImageMetadata({ meta, className, imageUrl, originalFile }: Image
                   <Separator className="my-4" />
                   <div className="mb-2">
                     <div className="font-medium text-sm mb-2">Resources</div>
-                    <div className="grid grid-cols-1 gap-2">
+                    <div className="flex flex-col gap-2">
                       {resources.map(({ label, value }, index) => (
-                        <div key={index} className="flex justify-between items-center">
-                          <div className="text-sm">{label}</div>
-                          <Badge variant="outline" className="text-xs font-mono">
+                        <div key={index} className="flex justify-between items-start">
+                          <div className="font-medium text-sm pt-1.5">{label}</div>
+                          <pre className="text-xs bg-muted p-1 py-1.5 px-3 rounded-md flex-1 text-right ml-2 whitespace-pre-wrap break-words min-h-[1.8rem] leading-normal max-w-[70%] font-mono">
                             {value}
-                          </Badge>
+                          </pre>
                         </div>
                       ))}
                     </div>
@@ -213,25 +213,25 @@ export function ImageMetadata({ meta, className, imageUrl, originalFile }: Image
                     </Button>
                     
                     {rawExpanded && (
-                      <pre className="text-xs bg-muted mt-2 p-2 rounded-md whitespace-pre-wrap break-words overflow-auto max-h-[300px]">
+                      <pre className="text-xs bg-muted mt-2 p-2 px-3 rounded-md whitespace-pre-wrap break-words w-full">
                         {JSON.stringify(meta.comfy, null, 2)}
                       </pre>
                     )}
                   </div>
                 </>
               )}
-            </ScrollArea>
+            </div>
           </TabsContent>
           
           <TabsContent value="raw">
-            <ScrollArea className="max-h-[500px]">
+            <div className="py-2">
               <div className="relative">
                 <CopyButton text={JSON.stringify(meta, null, 2)} className="absolute top-2 right-2" />
-                <pre className="text-xs bg-muted p-3 rounded-md whitespace-pre-wrap break-words overflow-auto">
+                <pre className="text-xs bg-muted p-3 px-4 rounded-md whitespace-pre-wrap break-words w-full">
                   {JSON.stringify(meta, null, 2)}
                 </pre>
               </div>
-            </ScrollArea>
+            </div>
           </TabsContent>
           
           {imageUrl && (

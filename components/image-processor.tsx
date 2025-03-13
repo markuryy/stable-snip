@@ -219,7 +219,7 @@ export function ImageProcessor() {
         </div>
 
         {/* Right column: Metadata panel */}
-        <div className="md:w-[450px] bg-background border rounded-lg overflow-hidden">
+        <div className="md:w-[450px] bg-background border rounded-lg">
           {metadata ? (
             <ImageMetadata 
               meta={metadata}
