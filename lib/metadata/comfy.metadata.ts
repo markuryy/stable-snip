@@ -148,7 +148,7 @@ export const comfyMetadataProcessor = {
     const workflow = exif.workflow ? (JSON.parse(exif.workflow as string) as any) : undefined;
     const versionIds: number[] = [];
     const modelIds: number[] = [];
-    let isCivitComfy = workflow?.extra?.airs?.length > 0;
+    const isCivitComfy = workflow?.extra?.airs?.length > 0;
     
     if (workflow?.extra) {
       // Old AIR parsing

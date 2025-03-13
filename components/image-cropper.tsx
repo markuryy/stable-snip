@@ -12,14 +12,13 @@ import {
   Check, 
   Lock, 
   Unlock, 
-  RefreshCw,
-  Download
+  RefreshCw
 } from 'lucide-react';
 import { saveImageWithMetadata } from '@/lib/metadata/save-with-metadata';
 
 interface ImageCropperProps {
   imageUrl: string;
-  metadata: Record<string, any>;
+  metadata: Record<string, unknown>;
   onComplete: () => void;
   onSave?: (canvas: HTMLCanvasElement) => void;
 }
@@ -60,11 +59,6 @@ export function ImageCropper({ imageUrl, metadata, onComplete, onSave }: ImageCr
   const toggleAspectLock = (e: React.MouseEvent) => {
     e.stopPropagation();
     setAspectLocked(!aspectLocked);
-  };
-
-  const handleCommit = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    onComplete();
   };
 
   const handleSaveAndDownload = async (e: React.MouseEvent) => {

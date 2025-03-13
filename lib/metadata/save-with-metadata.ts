@@ -1,8 +1,6 @@
 import { encodeMetadata } from './index';
 // Import the PNG chunks libraries directly
 import pngChunkText from 'png-chunk-text';
-// Use dynamic imports for the problematic libraries
-import dynamic from 'next/dynamic';
 
 /**
  * Takes a canvas containing the cropped image and embeds metadata into it
@@ -13,7 +11,7 @@ import dynamic from 'next/dynamic';
  */
 export async function saveImageWithMetadata(
   canvas: HTMLCanvasElement, 
-  metadata: Record<string, any>,
+  metadata: Record<string, unknown>,
   format: 'png' | 'jpeg' = 'png'
 ): Promise<Blob> {
   return new Promise((resolve, reject) => {

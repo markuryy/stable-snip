@@ -190,8 +190,8 @@ export const automaticMetadataProcessor = {
       for (const [name, hash] of Object.entries(metadata['Lora hashes'])) {
         metadata.hashes[`lora:${name}`] = hash;
         const resource = resources.find((r) => r.name === name);
-        if (resource) resource.hash = hash;
-        else resources.push({ type: 'lora', name, hash });
+        if (resource) resource.hash = hash as string;
+        else resources.push({ type: 'lora', name, hash: hash as string });
       }
       delete metadata['Lora hashes'];
     }

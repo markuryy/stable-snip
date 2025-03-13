@@ -19,7 +19,7 @@ type MetaDisplayItem = {
 };
 
 type ImageMetaProps = {
-  meta: Record<string, any>;
+  meta: Record<string, unknown>;
   className?: string;
   imageUrl?: string;
   originalFile?: File;
@@ -47,7 +47,6 @@ export function ImageMetadata({ meta, className, imageUrl, originalFile }: Image
   const [editedMetadata, setEditedMetadata] = useState<string>(
     meta.prompt ? encodeMetadata(meta) : JSON.stringify(meta, null, 2)
   );
-  const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   
   // Organize metadata into categories by length
@@ -103,12 +102,10 @@ export function ImageMetadata({ meta, className, imageUrl, originalFile }: Image
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
       
-      setIsEditing(false);
+      setIsSaving(false);
     } catch (error) {
       console.error('Error saving metadata:', error);
       alert('Failed to save metadata: ' + (error instanceof Error ? error.message : String(error)));
-    } finally {
-      setIsSaving(false);
     }
   };
   
@@ -288,7 +285,7 @@ function CopyButton({ text, className }: { text: string; className?: string }) {
 }
 
 // Helper function to organize metadata into categories
-function organizeMeta(meta: Record<string, any>) {
+function organizeMeta(meta: Record<string, unknown>) {
   const long: MetaDisplayItem[] = [];
   const medium: MetaDisplayItem[] = [];
   const short: MetaDisplayItem[] = [];
@@ -299,7 +296,7 @@ function organizeMeta(meta: Record<string, any>) {
   if (typeof meta.comfy === 'string') {
     try {
       comfyData = JSON.parse(meta.comfy);
-    } catch (e) {
+    } catch (_) {
       comfyData = { error: 'Invalid JSON' };
     }
   } else {
@@ -330,7 +327,7 @@ function organizeMeta(meta: Record<string, any>) {
   
   // Only add Model if not already added through resources
   if (meta.Model && !modelAdded && !resources.some(r => r.label === 'Model')) {
-    resources.push({ label: 'Model', value: meta.Model });
+    resources.push({ label: 'Model', value: String(meta.Model) });
   }
   
   // Categorize other metadata by length
