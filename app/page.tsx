@@ -13,25 +13,28 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import StableSnipLogo from "@/components/logo";
 
 export default function Home() {
   const [dialogOpen, setDialogOpen] = useState(false);
   
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b border-border/40">
-        <div className="container mx-auto py-4 px-4">
-          <h1 className="text-2xl font-bold">StableSnip</h1>
-          <p className="text-muted-foreground">Crop images while preserving their creation info</p>
-        </div>
-      </header>
+      <div className="container mx-auto pt-[7%] pb-4 px-4 flex flex-col items-center">
+        <Link href="/" className="mb-2">
+          <StableSnipLogo className="h-30 w-auto" />
+        </Link>
+        <p className="text-sm text-muted-foreground text-center">
+          Crop images while preserving their creation info
+        </p>
+      </div>
       
-      <main className="container mx-auto py-8">
+      <main className="container mx-auto">
         <ImageProcessor />
       </main>
       
-      <footer className="fixed bottom-4 left-0 right-0 flex justify-center">
-        <div className="w-full px-20 py-2 flex items-center justify-between text-xs bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <footer className="bottom-4 left-0 right-0 pb-4 flex justify-center">
+        <div className="w-full px-20 py-2 flex items-center justify-between text-xs">
           <div className="hidden lg:block">
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
               <DialogTrigger asChild>
