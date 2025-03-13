@@ -222,9 +222,16 @@ function organizeMeta(meta: Record<string, any>) {
   const hasComfy = !!comfyData;
   
   // Extract resources if available
+  let modelAdded = false;
+  
   if (meta.resources && Array.isArray(meta.resources)) {
     for (const resource of meta.resources) {
       if (resource.type && resource.name) {
+        // Handle model specially to avoid duplication
+        if (resource.type === 'model') {
+          modelAdded = true;
+        }
+        
         const label = `${resource.type.charAt(0).toUpperCase() + resource.type.slice(1)}`;
         const detail = resource.weight ? ` (weight: ${resource.weight})` : '';
         const value = `${resource.name}${detail}`;
@@ -233,7 +240,8 @@ function organizeMeta(meta: Record<string, any>) {
     }
   }
   
-  if (meta.Model) {
+  // Only add Model if not already added through resources
+  if (meta.Model && !modelAdded && !resources.some(r => r.label === 'Model')) {
     resources.push({ label: 'Model', value: meta.Model });
   }
   
