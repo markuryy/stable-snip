@@ -20,12 +20,11 @@ type MetaDisplayItem = {
 
 type ImageMetaProps = {
   meta: Record<string, unknown>;
-  workingMeta: Record<string, unknown>;
   className?: string;
   imageUrl?: string;
   originalFile?: File;
   onMetadataChange?: (metadata: Record<string, unknown>) => void;
-  hasPendingChanges?: boolean;
+  hasChanges?: boolean;
 };
 
 // Dictionary mapping metadata keys to display labels
@@ -47,43 +46,42 @@ const labelDictionary: Record<string, string> = {
 
 export function ImageMetadata({ 
   meta, 
-  workingMeta, 
   className, 
   imageUrl, 
   originalFile,
   onMetadataChange,
-  hasPendingChanges
+  hasChanges
 }: ImageMetaProps) {
   const [rawExpanded, setRawExpanded] = useState(false);
   const [editedMetadata, setEditedMetadata] = useState<string>(
-    workingMeta.prompt ? encodeMetadata(workingMeta) : JSON.stringify(workingMeta, null, 2)
+    meta.prompt ? encodeMetadata(meta) : JSON.stringify(meta, null, 2)
   );
   
   // Organize metadata into categories by length
-  const { long, medium, short, hasComfy, resources } = organizeMeta(workingMeta);
+  const { long, medium, short, hasComfy, resources } = organizeMeta(meta);
   
   // Whether there's any metadata to display
   const hasRegularMeta = long.length > 0 || medium.length > 0 || short.length > 0;
   
   // Generation process
-  const generationProcess = workingMeta.comfy ? 'ComfyUI' : 'txt2img';
+  const generationProcess = meta.comfy ? 'ComfyUI' : 'txt2img';
   
-  // Update edited metadata when working metadata changes
+  // Update edited metadata when metadata changes
   useEffect(() => {
     setEditedMetadata(
-      workingMeta.prompt ? encodeMetadata(workingMeta) : JSON.stringify(workingMeta, null, 2)
+      meta.prompt ? encodeMetadata(meta) : JSON.stringify(meta, null, 2)
     );
-  }, [workingMeta]);
+  }, [meta]);
   
-  // Apply metadata changes to working state
+  // Apply metadata changes
   const handleApplyMetadataChanges = () => {
     if (!onMetadataChange) return;
     
     try {
       let parsedMetadata;
-      if (workingMeta.prompt) {
+      if (meta.prompt) {
         // For A1111/SD WebUI format - keep the format but update content
-        parsedMetadata = {...workingMeta, prompt: editedMetadata};
+        parsedMetadata = {...meta, prompt: editedMetadata};
       } else {
         // For JSON/ComfyUI format
         parsedMetadata = JSON.parse(editedMetadata);
@@ -198,7 +196,7 @@ export function ImageMetadata({
                     
                     {rawExpanded && (
                       <pre className="text-xs bg-muted mt-2 p-2 px-3 rounded-md whitespace-pre-wrap break-words w-full">
-                        {JSON.stringify(workingMeta.comfy, null, 2)}
+                        {JSON.stringify(meta.comfy, null, 2)}
                       </pre>
                     )}
                   </div>
@@ -210,9 +208,9 @@ export function ImageMetadata({
           <TabsContent value="raw">
             <div className="py-2">
               <div className="relative">
-                <CopyButton text={JSON.stringify(workingMeta, null, 2)} className="absolute top-2 right-2" />
+                <CopyButton text={JSON.stringify(meta, null, 2)} className="absolute top-2 right-2" />
                 <pre className="text-xs bg-muted p-3 px-4 rounded-md whitespace-pre-wrap break-words w-full">
-                  {JSON.stringify(workingMeta, null, 2)}
+                  {JSON.stringify(meta, null, 2)}
                 </pre>
               </div>
             </div>
@@ -225,21 +223,15 @@ export function ImageMetadata({
                 onChange={(e) => setEditedMetadata(e.target.value)}
                 className="font-mono text-xs h-[300px]"
               />
-              {hasPendingChanges ? (
-                <div className="text-xs text-amber-500 italic mt-1">
-                  Use the "Apply Changes" button in the main toolbar to save these changes
-                </div>
-              ) : (
-                <Button
-                  variant="secondary"
-                  onClick={handleApplyMetadataChanges}
-                  disabled={!onMetadataChange}
-                  className="w-full"
-                >
-                  <Save className="w-4 h-4 mr-2" />
-                  Apply Metadata Changes
-                </Button>
-              )}
+              <Button
+                variant="secondary"
+                onClick={handleApplyMetadataChanges}
+                disabled={!onMetadataChange}
+                className="w-full"
+              >
+                <Save className="w-4 h-4 mr-2" />
+                Apply Changes
+              </Button>
             </div>
           </TabsContent>
         </Tabs>

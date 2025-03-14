@@ -15,14 +15,18 @@ export function ImageProcessor() {
   const [image, setImage] = useState<string | null>(null);
   const [originalFile, setOriginalFile] = useState<File | null>(null);
   const [metadata, setMetadata] = useState<Record<string, unknown> | null>(null);
-  const [workingMetadata, setWorkingMetadata] = useState<Record<string, unknown> | null>(null);
+  
+  // History state for undo
+  const [originalImage, setOriginalImage] = useState<string | null>(null);
+  const [originalMetadata, setOriginalMetadata] = useState<Record<string, unknown> | null>(null);
+  const [originalCroppedCanvas, setOriginalCroppedCanvas] = useState<HTMLCanvasElement | null>(null);
+  const [hasChanges, setHasChanges] = useState(false);
   
   // UI state
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showCropper, setShowCropper] = useState(false);
   const [croppedCanvas, setCroppedCanvas] = useState<HTMLCanvasElement | null>(null);
-  const [pendingChanges, setPendingChanges] = useState(false);
   const [processingDownload, setProcessingDownload] = useState(false);
   
   const inputRef = useRef<HTMLInputElement>(null);
@@ -32,13 +36,17 @@ export function ImageProcessor() {
     setLoading(true);
     setError(null);
     setCroppedCanvas(null);
-    setPendingChanges(false);
+    setHasChanges(false);
+    
+    // Reset history
+    setOriginalImage(null);
+    setOriginalMetadata(null);
+    setOriginalCroppedCanvas(null);
     
     try {
       const result = await preprocessImage(file);
       setImage(result.objectUrl);
       setMetadata(result.meta);
-      setWorkingMetadata(result.meta);
       setOriginalFile(file);
     } catch (err) {
       console.error("Error processing image:", err);
@@ -85,6 +93,14 @@ export function ImageProcessor() {
   // Handle crop button click
   const handleCrop = (e: React.MouseEvent) => {
     e.stopPropagation();
+    
+    // Save current state before cropping for undo
+    if (!hasChanges) {
+      setOriginalImage(image);
+      setOriginalMetadata(metadata);
+      setOriginalCroppedCanvas(croppedCanvas);
+    }
+    
     setShowCropper(true);
   };
 
@@ -93,31 +109,32 @@ export function ImageProcessor() {
     setShowCropper(false);
   };
 
-  // Save cropped canvas to working state
+  // Save cropped canvas
   const handleSaveCroppedCanvas = (canvas: HTMLCanvasElement) => {
     setCroppedCanvas(canvas);
     setShowCropper(false);
-    setPendingChanges(true);
+    setHasChanges(true);
   };
 
-  // Update metadata in working state
+  // Update metadata
   const handleMetadataChange = (newMetadata: Record<string, unknown>) => {
-    setWorkingMetadata(newMetadata);
-    setPendingChanges(true);
+    // Save original state for undo if this is the first change
+    if (!hasChanges) {
+      setOriginalImage(image);
+      setOriginalMetadata(metadata);
+      setOriginalCroppedCanvas(croppedCanvas);
+    }
+    
+    setMetadata(newMetadata);
+    setHasChanges(true);
   };
 
-  // Apply all pending changes
-  const handleApplyChanges = () => {
-    // Update the main metadata state with working metadata
-    setMetadata(workingMetadata);
-    setPendingChanges(false);
-  };
-
-  // Reset to original state
-  const handleReset = () => {
-    setCroppedCanvas(null);
-    setWorkingMetadata(metadata);
-    setPendingChanges(false);
+  // Undo all changes
+  const handleUndo = () => {
+    setImage(originalImage);
+    setMetadata(originalMetadata);
+    setCroppedCanvas(originalCroppedCanvas);
+    setHasChanges(false);
   };
 
   // Download current image with metadata
@@ -180,7 +197,7 @@ export function ImageProcessor() {
             <div className="bg-muted/20 py-3 px-4 border-b flex justify-between items-center">
               <h2 className="text-md font-medium">Image</h2>
               {loading && <p className="text-xs text-muted-foreground">Processing...</p>}
-              {pendingChanges && <Badge variant="outline" className="text-xs">Unsaved changes</Badge>}
+              {hasChanges && <Badge variant="outline" className="text-xs">Edited</Badge>}
             </div>
             
             {/* Main content area */}
@@ -265,34 +282,24 @@ export function ImageProcessor() {
                       <Crop className="w-4 h-4 mr-2" />
                       Crop
                     </Button>
-                    {pendingChanges && (
+                    {hasChanges && (
                       <Button 
                         variant="outline"
-                        size="sm"
-                        onClick={handleReset}
+                        size="sm" 
+                        onClick={handleUndo}
                       >
-                        <X className="w-4 h-4 mr-2" />
-                        Reset
+                        <RefreshCw className="w-4 h-4 mr-2" />
+                        Discard Changes
                       </Button>
                     )}
                   </div>
                   
                   <div className="flex gap-2">
-                    {pendingChanges && (
-                      <Button 
-                        variant="secondary"
-                        size="sm"
-                        onClick={handleApplyChanges}
-                      >
-                        <Save className="w-4 h-4 mr-2" />
-                        Apply Changes
-                      </Button>
-                    )}
                     <Button 
                       variant="default"
                       size="sm"
                       onClick={handleDownload}
-                      disabled={processingDownload || pendingChanges || !metadata}
+                      disabled={processingDownload || !metadata}
                     >
                       {processingDownload ? (
                         <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
@@ -318,11 +325,10 @@ export function ImageProcessor() {
           {metadata ? (
             <ImageMetadata 
               meta={metadata}
-              workingMeta={workingMetadata || metadata}
               imageUrl={croppedCanvas ? croppedCanvas.toDataURL() : image || undefined}
               originalFile={originalFile || undefined}
               onMetadataChange={handleMetadataChange}
-              hasPendingChanges={pendingChanges}
+              hasChanges={hasChanges}
             />
           ) : (
             <div className="flex flex-col items-center justify-center p-10 h-[400px]">
