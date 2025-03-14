@@ -10,11 +10,27 @@ import {
   FlipHorizontal, 
   FlipVertical, 
   Check, 
-  Lock, 
-  Unlock, 
-  RefreshCw
+  X,
+  RefreshCw,
+  Proportions as AspectRatio,
+  ChevronDown
 } from 'lucide-react';
-import { saveImageWithMetadata } from '@/lib/metadata/save-with-metadata';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator
+} from "@/components/ui/dropdown-menu";
+
+interface AspectRatioOption {
+  label: string;
+  value: number | undefined;
+  description?: string;
+}
 
 interface ImageCropperProps {
   imageUrl: string;
@@ -28,8 +44,23 @@ export function ImageCropper({ imageUrl, metadata, onComplete, onSave }: ImageCr
   const [rotation, setRotation] = useState(0);
   const [flipH, setFlipH] = useState(false);
   const [flipV, setFlipV] = useState(false);
-  const [aspectLocked, setAspectLocked] = useState(false);
+  const [aspectRatio, setAspectRatio] = useState<number | undefined>(undefined);
   const [isProcessing, setIsProcessing] = useState(false);
+
+  // Common aspect ratios
+  const aspectRatios: AspectRatioOption[] = [
+    { label: "Free", value: undefined, description: "No constraints" },
+    { label: "Square", value: 1, description: "1:1" },
+    { label: "Portrait", value: 3/4, description: "3:4" },
+    { label: "Landscape", value: 4/3, description: "4:3" },
+    { label: "Cinema", value: 16/9, description: "16:9" },
+    { label: "Widescreen", value: 21/9, description: "21:9" },
+  ];
+  
+  const getCurrentAspectRatioLabel = () => {
+    const current = aspectRatios.find(ratio => ratio.value === aspectRatio);
+    return current ? current.label : "Free";
+  };
 
   const handleReset = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -56,12 +87,12 @@ export function ImageCropper({ imageUrl, metadata, onComplete, onSave }: ImageCr
     setFlipV((prev) => !prev);
   };
 
-  const toggleAspectLock = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setAspectLocked(!aspectLocked);
+  const handleSetAspectRatio = (ratio: string) => {
+    const numRatio = ratio === "undefined" ? undefined : Number(ratio);
+    setAspectRatio(numRatio);
   };
 
-  const handleSaveAndDownload = async (e: React.MouseEvent) => {
+  const handleApplyCrop = async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!cropperRef.current) return;
     
@@ -90,29 +121,10 @@ export function ImageCropper({ imageUrl, metadata, onComplete, onSave }: ImageCr
         return;
       }
       
-      // If onSave callback is provided, use it
+      // Use onSave callback to pass canvas back to parent
       if (onSave) {
         onSave(canvas);
-      } else {
-        // Otherwise save with metadata and download
-        const blob = await saveImageWithMetadata(canvas, metadata, 'png');
-        
-        // Download the image
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = 'cropped-image.png';
-        
-        // Trigger download
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        
-        // Clean up
-        URL.revokeObjectURL(url);
       }
-      
-      onComplete();
     } catch (error) {
       console.error('Error during crop operation:', error);
       alert('Failed to crop image: ' + (error instanceof Error ? error.message : String(error)));
@@ -129,7 +141,7 @@ export function ImageCropper({ imageUrl, metadata, onComplete, onSave }: ImageCr
           src={imageUrl}
           className="w-full h-full"
           stencilProps={{
-            aspectRatio: aspectLocked ? 1 : undefined,
+            aspectRatio: aspectRatio,
             theme: 'corners',
             movable: true,
             resizable: true,
@@ -145,50 +157,85 @@ export function ImageCropper({ imageUrl, metadata, onComplete, onSave }: ImageCr
         />
       </div>
       
-      <div className="flex items-center flex-wrap gap-2" onClick={(e) => e.stopPropagation()}>
-        <Button 
-          variant="outline" 
-          size="sm" 
-          onClick={handleReset}
-        >
-          <RefreshCw size={14} className="mr-1" />
-          Reset
-        </Button>
-        <Button variant="outline" size="sm" onClick={handleRotate}>
-          <RotateCcw size={14} className="mr-1" />
-          Rotate
-        </Button>
-        <Button variant="outline" size="sm" onClick={handleFlipH}>
-          <FlipHorizontal size={14} className="mr-1" />
-          Flip H
-        </Button>
-        <Button variant="outline" size="sm" onClick={handleFlipV}>
-          <FlipVertical size={14} className="mr-1" />
-          Flip V
-        </Button>
-        <Button 
-          variant={aspectLocked ? "default" : "outline"} 
-          size="sm" 
-          onClick={toggleAspectLock}
-        >
-          {aspectLocked ? <Lock size={14} className="mr-1" /> : <Unlock size={14} className="mr-1" />}
-          {aspectLocked ? "Unlock Ratio" : "Lock Ratio"}
-        </Button>
-        
-        <div className="ml-auto">
-          <Button 
-            variant="default" 
-            size="sm"
-            onClick={handleSaveAndDownload}
-            disabled={isProcessing}
-          >
-            {isProcessing ? (
-              <RefreshCw size={14} className="mr-1 animate-spin" />
-            ) : (
-              <Check size={14} className="mr-1" />
-            )}
-            {isProcessing ? 'Processing...' : 'Save'}
-          </Button>
+      {/* Editing tools */}
+      <div className="flex flex-col gap-3 py-1" onClick={(e) => e.stopPropagation()}>
+        {/* Transform tools */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <AspectRatio size={14} className="mr-1" />
+                  {getCurrentAspectRatioLabel()}
+                  <ChevronDown size={14} className="ml-1" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-44">
+                <DropdownMenuLabel>Aspect Ratio</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuRadioGroup 
+                  value={aspectRatio?.toString() || "undefined"}
+                  onValueChange={handleSetAspectRatio}
+                >
+                  {aspectRatios.map((ratio) => (
+                    <DropdownMenuRadioItem 
+                      key={ratio.label} 
+                      value={ratio.value?.toString() || "undefined"}
+                    >
+                      {ratio.label}
+                      {ratio.description && (
+                        <span className="text-muted-foreground ml-2 text-xs">
+                          {ratio.description}
+                        </span>
+                      )}
+                    </DropdownMenuRadioItem>
+                  ))}
+                </DropdownMenuRadioGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            
+            <Button variant="outline" size="sm" onClick={handleReset}>
+              <RefreshCw size={14} className="mr-1" />
+              Reset
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleRotate}>
+              <RotateCcw size={14} className="mr-1" />
+              Rotate
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleFlipH}>
+              <FlipHorizontal size={14} className="mr-1" />
+              Flip H
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleFlipV}>
+              <FlipVertical size={14} className="mr-1" />
+              Flip V
+            </Button>
+          </div>
+          
+          {/* Action buttons */}
+          <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={onComplete}
+            >
+              <X size={14} className="mr-1" />
+              Cancel
+            </Button>
+            <Button 
+              variant="default" 
+              size="sm"
+              onClick={handleApplyCrop}
+              disabled={isProcessing}
+            >
+              {isProcessing ? (
+                <RefreshCw size={14} className="mr-1 animate-spin" />
+              ) : (
+                <Check size={14} className="mr-1" />
+              )}
+              {isProcessing ? 'Processing...' : 'Apply Crop'}
+            </Button>
+          </div>
         </div>
       </div>
     </div>

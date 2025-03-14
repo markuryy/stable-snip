@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Copy, ChevronDown, ChevronUp, FileJson, Save } from "lucide-react";
@@ -20,9 +20,12 @@ type MetaDisplayItem = {
 
 type ImageMetaProps = {
   meta: Record<string, unknown>;
+  workingMeta: Record<string, unknown>;
   className?: string;
   imageUrl?: string;
   originalFile?: File;
+  onMetadataChange?: (metadata: Record<string, unknown>) => void;
+  hasPendingChanges?: boolean;
 };
 
 // Dictionary mapping metadata keys to display labels
@@ -42,70 +45,54 @@ const labelDictionary: Record<string, string> = {
   denoise: 'Denoise',
 };
 
-export function ImageMetadata({ meta, className, imageUrl, originalFile }: ImageMetaProps) {
+export function ImageMetadata({ 
+  meta, 
+  workingMeta, 
+  className, 
+  imageUrl, 
+  originalFile,
+  onMetadataChange,
+  hasPendingChanges
+}: ImageMetaProps) {
   const [rawExpanded, setRawExpanded] = useState(false);
   const [editedMetadata, setEditedMetadata] = useState<string>(
-    meta.prompt ? encodeMetadata(meta) : JSON.stringify(meta, null, 2)
+    workingMeta.prompt ? encodeMetadata(workingMeta) : JSON.stringify(workingMeta, null, 2)
   );
-  const [isSaving, setIsSaving] = useState(false);
   
   // Organize metadata into categories by length
-  const { long, medium, short, hasComfy, resources } = organizeMeta(meta);
+  const { long, medium, short, hasComfy, resources } = organizeMeta(workingMeta);
   
   // Whether there's any metadata to display
   const hasRegularMeta = long.length > 0 || medium.length > 0 || short.length > 0;
   
   // Generation process
-  const generationProcess = meta.comfy ? 'ComfyUI' : 'txt2img';
+  const generationProcess = workingMeta.comfy ? 'ComfyUI' : 'txt2img';
   
-  const handleSaveMetadata = async () => {
-    if (!imageUrl) return;
+  // Update edited metadata when working metadata changes
+  useEffect(() => {
+    setEditedMetadata(
+      workingMeta.prompt ? encodeMetadata(workingMeta) : JSON.stringify(workingMeta, null, 2)
+    );
+  }, [workingMeta]);
+  
+  // Apply metadata changes to working state
+  const handleApplyMetadataChanges = () => {
+    if (!onMetadataChange) return;
     
     try {
-      setIsSaving(true);
-      
       let parsedMetadata;
-      if (meta.prompt) {
+      if (workingMeta.prompt) {
         // For A1111/SD WebUI format - keep the format but update content
-        parsedMetadata = {...meta, prompt: editedMetadata};
+        parsedMetadata = {...workingMeta, prompt: editedMetadata};
       } else {
         // For JSON/ComfyUI format
         parsedMetadata = JSON.parse(editedMetadata);
       }
       
-      // Create an image element to use for saving
-      const img = new Image();
-      img.src = imageUrl;
-      
-      await new Promise((resolve) => {
-        img.onload = resolve;
-      });
-      
-      // Create a canvas to draw the image
-      const canvas = document.createElement('canvas');
-      canvas.width = img.width;
-      canvas.height = img.height;
-      const ctx = canvas.getContext('2d');
-      ctx?.drawImage(img, 0, 0);
-      
-      // Save with the edited metadata
-      const format = originalFile?.type.includes('png') ? 'png' : 'jpeg';
-      const blob = await saveImageWithMetadata(canvas, parsedMetadata, format as any);
-      
-      // Create download link
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = originalFile?.name || `image-with-edited-metadata.${format}`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      
-      setIsSaving(false);
+      onMetadataChange(parsedMetadata);
     } catch (error) {
-      console.error('Error saving metadata:', error);
-      alert('Failed to save metadata: ' + (error instanceof Error ? error.message : String(error)));
+      console.error('Error parsing metadata:', error);
+      alert('Failed to parse metadata: ' + (error instanceof Error ? error.message : String(error)));
     }
   };
   
@@ -133,7 +120,7 @@ export function ImageMetadata({ meta, className, imageUrl, originalFile }: Image
         <TabsList>
           <TabsTrigger value="formatted">Formatted</TabsTrigger>
           <TabsTrigger value="raw">Raw</TabsTrigger>
-          {imageUrl && <TabsTrigger value="edit">Edit</TabsTrigger>}
+          <TabsTrigger value="edit">Edit</TabsTrigger>
           </TabsList>
           
           <TabsContent value="formatted">
@@ -211,7 +198,7 @@ export function ImageMetadata({ meta, className, imageUrl, originalFile }: Image
                     
                     {rawExpanded && (
                       <pre className="text-xs bg-muted mt-2 p-2 px-3 rounded-md whitespace-pre-wrap break-words w-full">
-                        {JSON.stringify(meta.comfy, null, 2)}
+                        {JSON.stringify(workingMeta.comfy, null, 2)}
                       </pre>
                     )}
                   </div>
@@ -223,39 +210,38 @@ export function ImageMetadata({ meta, className, imageUrl, originalFile }: Image
           <TabsContent value="raw">
             <div className="py-2">
               <div className="relative">
-                <CopyButton text={JSON.stringify(meta, null, 2)} className="absolute top-2 right-2" />
+                <CopyButton text={JSON.stringify(workingMeta, null, 2)} className="absolute top-2 right-2" />
                 <pre className="text-xs bg-muted p-3 px-4 rounded-md whitespace-pre-wrap break-words w-full">
-                  {JSON.stringify(meta, null, 2)}
+                  {JSON.stringify(workingMeta, null, 2)}
                 </pre>
               </div>
             </div>
           </TabsContent>
           
-          {imageUrl && (
-            <TabsContent value="edit">
-              <div className="space-y-4">
-                <Textarea 
-                  value={editedMetadata}
-                  onChange={(e) => setEditedMetadata(e.target.value)}
-                  className="font-mono text-xs h-[300px]"
-                />
+          <TabsContent value="edit">
+            <div className="space-y-4">
+              <Textarea 
+                value={editedMetadata}
+                onChange={(e) => setEditedMetadata(e.target.value)}
+                className="font-mono text-xs h-[300px]"
+              />
+              {hasPendingChanges ? (
+                <div className="text-xs text-amber-500 italic mt-1">
+                  Use the "Apply Changes" button in the main toolbar to save these changes
+                </div>
+              ) : (
                 <Button
-                  variant="default"
-                  onClick={handleSaveMetadata}
-                  disabled={isSaving}
+                  variant="secondary"
+                  onClick={handleApplyMetadataChanges}
+                  disabled={!onMetadataChange}
+                  className="w-full"
                 >
-                  {isSaving ? (
-                    <span>Saving...</span>
-                  ) : (
-                    <>
-                      <Save className="w-4 h-4 mr-2" />
-                      Save with Edited Metadata
-                    </>
-                  )}
+                  <Save className="w-4 h-4 mr-2" />
+                  Apply Metadata Changes
                 </Button>
-              </div>
-            </TabsContent>
-          )}
+              )}
+            </div>
+          </TabsContent>
         </Tabs>
       </div>
     </div>
